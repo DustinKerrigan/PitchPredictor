@@ -1,12 +1,12 @@
 import mlbstatsapi
 import pandas as pd
+import time
 
 mlb = mlbstatsapi.Mlb()
 
 # Function to get all game IDs for the 2023 season
 def get_all_game_ids(year):
     schedule = mlb.get_schedule(start_date=f'{year}-04-01', end_date=f'{year}-10-01')
-    
     # Extracting game IDs from the schedule object
     game_ids = []
     for date_info in schedule.dates:
@@ -18,7 +18,6 @@ def get_all_game_ids(year):
 def get_game_data(game_id):
     playbyplay = mlb.get_game_play_by_play(game_id)
     game_data = []
-
     for play in playbyplay.allplays:
         for event in play.playevents:
             if event.ispitch:
@@ -33,7 +32,6 @@ def get_game_data(game_id):
                     'RunnersOn': runners_on,
                     'PitchType': event.details.type.description if event.details and event.details.type else None,
                     'Velocity': event.pitchdata.startspeed if event.pitchdata else None,
-                    'SpinRate': event.pitchdata.breaks.spinrate if event.pitchdata else None,
                     'ReleasePoint': event.pitchdata.extension if event.pitchdata else None,
                     'Outcome': event.details.description if event.details else None
                 })
@@ -48,14 +46,17 @@ def save_to_csv(data, filename):
 def main():
     game_ids = get_all_game_ids(2023)
     all_game_data = []
-
-    for game_id in game_ids:
+    for count, game_id in enumerate(game_ids, start=1):
         game_data = get_game_data(game_id)
-        all_game_data.extend(game_data)
-
+        all_game_data.extend(game_data) 
+        # Log progress every 50 games
+        if count % 50 == 0:
+            print(f"Processed {count} games out of {len(game_ids)}")
+            # Adding a sleep to prevent hitting the rate limit
+            time.sleep(1)
+    print("Data collection complete.")
     #save_to_csv(all_game_data, 'historical_pitch_data_2023.csv')
     print(all_game_data)
-
 if __name__ == "__main__":
     main()
 
