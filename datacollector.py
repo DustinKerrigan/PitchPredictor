@@ -4,17 +4,14 @@ import time
 
 mlb = mlbstatsapi.Mlb()
 
-# Function to get all game IDs for the 2023 season
 def get_all_game_ids(year):
     schedule = mlb.get_schedule(start_date=f'{year}-04-01', end_date=f'{year}-10-01')
-    # Extracting game IDs from the schedule object
     game_ids = []
     for date_info in schedule.dates:
         for game in date_info.games:
-            game_ids.append(game.gamepk)  # Use the correct attribute for the game ID
+            game_ids.append(game.gamepk)  
     return game_ids
 
-# Function to extract play-by-play data for a given game ID
 def get_game_data(game_id):
     playbyplay = mlb.get_game_play_by_play(game_id)
     game_data = []
@@ -31,28 +28,24 @@ def get_game_data(game_id):
                     'Outs': play.count.outs,
                     'RunnersOn': runners_on,
                     'PitchType': event.details.type.description if event.details and event.details.type else None,
-                    'Velocity': event.pitchdata.startspeed if event.pitchdata else None,
-                    'ReleasePoint': event.pitchdata.extension if event.pitchdata else None,
                     'Outcome': event.details.description if event.details else None
                 })
     return game_data
 
-# Function to save data to a CSV file
 def save_to_csv(data, filename):
     df = pd.DataFrame(data)
     df.to_csv(filename, index=False)
 
-# Main script to get data for the 2023 season and save to a CSV file
 def main():
     game_ids = get_all_game_ids(2023)
     all_game_data = []
     for count, game_id in enumerate(game_ids, start=1):
         game_data = get_game_data(game_id)
         all_game_data.extend(game_data) 
-        # Log progress every 50 games
+        #log progress every 50 games
         if count % 50 == 0:
             print(f"Processed {count} games out of {len(game_ids)}")
-            # Adding a sleep to prevent hitting the rate limit
+            # sleep to prevent hitting the rate limit
             time.sleep(1)
     print("Data collection complete.")
     #save_to_csv(all_game_data, 'historical_pitch_data_2023.csv')
