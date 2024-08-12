@@ -1,6 +1,9 @@
 import mlbstatsapi
 import pandas as pd
 import time
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 mlb = mlbstatsapi.Mlb()
 
@@ -12,8 +15,39 @@ def get_all_game_ids(year):
             game_ids.append(game.gamepk)  
     return game_ids
 
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+    return session
+
 def get_game_data(game_id):
-    playbyplay = mlb.get_game_play_by_play(game_id)
+    session = requests_retry_session()
+    playbyplay = None
+    #retry logic for the MLB API call
+    for _ in range(3):
+        try:
+            playbyplay = mlb.get_game_play_by_play(game_id, session=session)
+            break  
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed for game ID {game_id}, retrying... Error: {e}")
+            time.sleep(2)  #give some time before retrying
+    if playbyplay is None:
+        print(f"Failed to retrieve data for game ID {game_id} after multiple attempts.")
+        return []
     game_data = []
     for play in playbyplay.allplays:
         for event in play.playevents:
@@ -48,8 +82,9 @@ def main():
             # sleep to prevent hitting the rate limit
             time.sleep(1)
     print("Data collection complete.")
-    #save_to_csv(all_game_data, 'historical_pitch_data_2023.csv')
+    save_to_csv(all_game_data, 'historical_test_2023.csv')
     print(all_game_data)
+
 if __name__ == "__main__":
     main()
 
